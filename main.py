@@ -3,9 +3,13 @@ from kivymd.app import MDApp
 from kivy.uix.image import Image
 from kivy.clock import Clock
 from kivymd.uix.screen import Screen
+from kivy.core.window import Window
 import cv2
 import mediapipe as mp
 import numpy as np
+
+Window.clearcolor = (1, 1, 1, 1)
+Window.size = (360, 600)
 
 
 class HandGestureCameraApp(MDApp):
@@ -17,13 +21,14 @@ class HandGestureCameraApp(MDApp):
         self.xp, self.yp = 0, 0
         self.imgCanvas = np.zeros((480, 640, 3), np.uint8)
         self.results = None
-        self.mp_drawing = mp.solutions.drawing_utils
-        self.mp_hands = mp.solutions.hands
+
         Clock.schedule_interval(self.load_video, 1.0 / 33.0)
 
         return layout
 
     def load_video(self, *args):
+        self.mp_drawing = mp.solutions.drawing_utils
+        self.mp_hands = mp.solutions.hands
         self.tipIds = [4, 8, 12, 16, 20]
 
         with self.mp_hands.Hands(min_detection_confidence=0.8, min_tracking_confidence=0.5) as hands:
@@ -36,6 +41,7 @@ class HandGestureCameraApp(MDApp):
                 self.results = hands.process(rgbImage)
                 rgbImage.flags.writeable = True
                 lmList = self.findPosition(rgbImage)
+                print("LmList: ", lmList)
 
                 if self.results.multi_hand_landmarks:
 
@@ -52,7 +58,13 @@ class HandGestureCameraApp(MDApp):
                     self.x2, self.y2 = lmList[12][1:]
                     finger = self.fingerUp()
 
-                    if finger[0] == True and finger[1] == True and finger[2] == True and finger[3] == True and \
+                    if finger[1] == True and finger[2] == False:
+                        if self.xp == 0 and self.yp == 0:
+                            self.xp, self.yp = self.x1, self.y1
+                        cv2.line(rgbImage, (self.xp, self.yp), (self.x1, self.y1), (30, 144, 255), 15)
+                        cv2.line(self.imgCanvas, (self.xp, self.yp), (self.x1, self.y1), (30, 144, 255), 15)
+
+                    elif finger[0] == True and finger[1] == True and finger[2] == True and finger[3] == True and \
                             finger[4] == True:
                         if self.xp == 0 and self.yp == 0:
                             self.xp, self.yp = self.x1, self.y1
@@ -64,12 +76,6 @@ class HandGestureCameraApp(MDApp):
                             finger[4] == False:
                         self.xp, self.yp = 0, 0
 
-                    elif finger[1] == True and finger[2] == False:
-                        if self.xp == 0 and self.yp == 0:
-                            self.xp, self.yp = self.x1, self.y1
-                        cv2.line(rgbImage, (self.xp, self.yp), (self.x1, self.y1), (30, 144, 255), 15)
-                        cv2.line(self.imgCanvas, (self.xp, self.yp), (self.x1, self.y1), (30, 144, 255), 15)
-                        print("XP, YP: ", self.xp, self.yp)
                     self.xp, self.yp = self.x1, self.y1
 
                 imgGrey = cv2.cvtColor(self.imgCanvas, cv2.COLOR_BGR2GRAY)
